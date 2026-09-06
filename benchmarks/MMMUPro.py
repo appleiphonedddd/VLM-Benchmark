@@ -25,7 +25,12 @@ class MMMUProDataset(BaseBenchmarkDataset):
 
             options = ast.literal_eval(item["options"])
             option_text = "\n".join(f"{key}. {value}" for key, value in zip(OPTION_KEYS, options))
-            prompt = "\n".join([item["question"], option_text, "Answer with the letter of the correct option."])
+            prompt = "\n".join([
+                item["question"],
+                option_text,
+                "Think step by step, then end your response with a new line "
+                "in the exact form 'Answer: <letter>'.",
+            ])
 
             samples.append({
                 "id": item.get("id"),

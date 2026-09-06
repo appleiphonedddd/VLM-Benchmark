@@ -29,7 +29,10 @@ class MMMUDataset(BaseBenchmarkDataset):
                 options = ast.literal_eval(item["options"])
                 option_text = "\n".join(f"{key}. {value}" for key, value in zip(OPTION_KEYS, options))
                 prompt_parts.append(option_text)
-                prompt_parts.append("Answer with the letter of the correct option.")
+                prompt_parts.append(
+                    "Think step by step, then end your response with a new line "
+                    "in the exact form 'Answer: <letter>'."
+                )
             else:
                 prompt_parts.append("Answer with a short, exact response.")
 

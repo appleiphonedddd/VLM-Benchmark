@@ -53,6 +53,7 @@ class HuggingFaceBaseVLM(BaseVLM):
         self,
         images: List[Union[Image.Image, str]],
         prompts: List[str],
+        max_new_tokens: int = 16384,
         **gen_kwargs
     ) -> List[str]:
         if not images or not prompts:
@@ -77,11 +78,8 @@ class HuggingFaceBaseVLM(BaseVLM):
 
         inputs = self.process_inputs(texts, pil_images)
 
-        default_gen_kwargs = {"max_new_tokens": 128}
-        default_gen_kwargs.update(gen_kwargs)
-
         with torch.no_grad():
-            output_ids = self.model.generate(**inputs, **default_gen_kwargs)
+            output_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens, **gen_kwargs)
 
         generated_ids_trimmed = [
             out[len(inp):] for inp, out in zip(inputs.input_ids, output_ids)

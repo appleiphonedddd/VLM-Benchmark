@@ -63,6 +63,9 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=1,
                         help="Batch size for model inference (default: 1)")
 
+    parser.add_argument("--max_new_tokens", type=int, default=8192,
+                        help="Max new tokens to generate per sample")
+
     parser.add_argument("--device", type=str, default="cuda")
 
     return parser.parse_args()
@@ -107,7 +110,8 @@ def main():
 
     print("Starting evaluation...")
     evaluation = dataset.run_evaluation(
-        model, on_sample=make_progress_reporter(), batch_size=args.batch_size
+        model, on_sample=make_progress_reporter(), batch_size=args.batch_size,
+        max_new_tokens=args.max_new_tokens
     )
 
     details = evaluation["details"]
