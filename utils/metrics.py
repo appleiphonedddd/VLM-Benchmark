@@ -1,3 +1,11 @@
+"""
+Multi-modal benchmark evaluation utilities for MMBench, MMMU, and MMMU-Pro.
+
+Evaluation logic and parsing routines are adapted from:
+- MMMU: https://github.com/MMMU-Benchmark/MMMU
+- VLMEvalKit / MMBench: https://github.com/open-compass/VLMEvalKit
+"""
+
 import ast
 import math
 import re
@@ -19,14 +27,14 @@ def parse_choice_response(
     text = response.strip()
     choices_str = "".join(all_choices)
 
-    # 1. Direct single-letter response: e.g. "A", "A.", "(A)", "[A]"
+    # e.g. "A", "A.", "(A)", "[A]"
     direct_match = re.match(
         rf"^\s*[\(\[]?\s*([{choices_str}])\s*[\)\]]?[\.\:\s]*$", text, re.IGNORECASE
     )
     if direct_match:
         return direct_match.group(1).upper()
 
-    # 2. Explicit patterns: e.g. "the answer is (A)", "The correct option is: B"
+    # e.g. "the answer is (A)", "The correct option is: B"
     explicit_pattern = re.compile(
         rf"(?:the\s+)?(?:correct\s+)?(?:answer|choice|option)\s*(?:is|:|\*|\.|\s)*\s*\(?([{choices_str}])\)?",
         re.IGNORECASE,
@@ -35,13 +43,13 @@ def parse_choice_response(
     if matches:
         return matches[-1].upper()
 
-    # 3. Bracketed format: e.g. (A), [B]
+    # e.g. "(A)", "[B]" appearing anywhere in the text
     bracket_pattern = re.compile(rf"[\(\[]\s*([{choices_str}])\s*[\)\]]")
     bracket_matches = bracket_pattern.findall(text)
     if bracket_matches:
         return bracket_matches[-1].upper()
 
-    # 4. Strip first-person phrases (avoids mistaking "I" in "I choose A" for option I)
+    # strip first-person phrases so "I choose A" isn't mistaken for option I
     sanitized_text = re.sub(
         r"\bI\s+(?:think|believe|choose|guess|assume|would|conclude|found)\b",
         "",
@@ -53,7 +61,6 @@ def parse_choice_response(
     if standalone_matches:
         return standalone_matches[-1].upper()
 
-    # 5. Align with option text if index2ans mapping is provided
     if index2ans:
         for opt, ans_text in sorted(
             index2ans.items(), key=lambda x: len(str(x[1])), reverse=True
@@ -102,7 +109,6 @@ def eval_open_match(prediction: str, ground_truth: Any) -> float:
         pred_nums = num_pattern.findall(extracted_pred.replace(",", ""))
         gt_nums = num_pattern.findall(cand_str.replace(",", ""))
 
-        # Numerical match: if ground truth is in numerical format
         if gt_nums and re.fullmatch(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", cand_str.replace(",", "")):
             if pred_nums:
                 try:
@@ -114,13 +120,11 @@ def eval_open_match(prediction: str, ground_truth: Any) -> float:
                     pass
             continue
 
-        # Text match: exact match after normalization
         norm_cand = re.sub(r"[^a-z0-9]", "", cand_str.lower())
         norm_pred = re.sub(r"[^a-z0-9]", "", extracted_pred.lower())
         if norm_cand and norm_cand == norm_pred:
             return 1.0
 
-        # Or candidate appears as a distinct word/phrase in the response
         cand_escaped = re.escape(cand_str.lower())
         if cand_str and re.search(rf"\b{cand_escaped}\b", extracted_pred.lower()):
             return 1.0
@@ -131,7 +135,7 @@ def eval_open_match(prediction: str, ground_truth: Any) -> float:
 class MMBenchEvaluator:
     """Implements MMBench official CircularEval mechanism."""
 
-    def __init__(self, option_keys: List[str] = OPTION_KEYS[:4]):  # Default A-D
+    def __init__(self, option_keys: List[str] = OPTION_KEYS[:4]):
         self.option_keys = option_keys
 
     def score_sample(self, prediction: str, ground_truth: str) -> float:
@@ -153,11 +157,10 @@ class MMBenchEvaluator:
             correct = self.score_sample(r["prediction"], r["ground_truth"])
             grouped[qid].append(correct)
 
-        # 1. Ordinary Sample-level Accuracy
         total_trials = sum(len(v) for v in grouped.values())
         acc = sum(sum(v) for v in grouped.values()) / total_trials if total_trials else 0.0
 
-        # 2. CircularEval Acc+: all circular shifts of the question must be correct
+        # Acc+ counts a question correct only if every circular shift of it was answered correctly
         acc_plus = sum(1 for v in grouped.values() if all(c == 1.0 for c in v)) / len(grouped) if grouped else 0.0
 
         return {
@@ -225,7 +228,7 @@ class MMMUProEvaluator:
     """Implements MMMU-Pro 10-option (A-J) evaluator."""
 
     def __init__(self):
-        self.option_keys = OPTION_KEYS  # A-J (10 options)
+        self.option_keys = OPTION_KEYS
 
     def score_sample(
         self,
@@ -274,7 +277,6 @@ class Accuracy:
         else:
             accepted_answers = self.parse_answers(ground_truth)
             normalized_prediction = self.normalize(prediction)
-            # Support exact match as well as numerical/open matching
             correct = float(any(normalized_prediction == self.normalize(ans) for ans in accepted_answers))
             if correct == 0.0:
                 correct = eval_open_match(prediction, ground_truth)
