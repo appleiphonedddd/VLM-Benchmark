@@ -218,6 +218,80 @@ class TestCliArguments(unittest.TestCase):
             self.assertEqual(parsed.batch_size, 1)
 
 
+
+class TestEvaluatorsAndMetrics(unittest.TestCase):
+    def test_parse_choice_response(self):
+        from utils.metrics import parse_choice_response
+
+        self.assertEqual(parse_choice_response("A"), "A")
+        self.assertEqual(parse_choice_response(" A. "), "A")
+        self.assertEqual(parse_choice_response("(B)"), "B")
+        self.assertEqual(parse_choice_response("[C]"), "C")
+        self.assertEqual(parse_choice_response("The correct answer is D"), "D")
+        self.assertEqual(parse_choice_response("The answer is (A)"), "A")
+        self.assertEqual(parse_choice_response("I think the answer is B"), "B")
+        self.assertEqual(parse_choice_response("I choose A"), "A")
+        self.assertEqual(
+            parse_choice_response("The result is Paris", index2ans={"A": "London", "B": "Paris"}),
+            "B",
+        )
+        self.assertEqual(parse_choice_response("Invalid response with no option"), "")
+
+    def test_eval_open_match(self):
+        from utils.metrics import eval_open_match
+
+        self.assertEqual(eval_open_match("The answer is 42", "42"), 1.0)
+        self.assertEqual(eval_open_match("42.001", "42.0"), 1.0)
+        self.assertEqual(eval_open_match("The value is 100", "0"), 0.0)  # No substring false positive
+        self.assertEqual(eval_open_match("It is a cat", "cat"), 1.0)
+        self.assertEqual(eval_open_match("category", "cat"), 0.0)
+        self.assertEqual(eval_open_match("dog", "['cat', 'dog']"), 1.0)
+
+    def test_mmbench_evaluator(self):
+        from utils.metrics import MMBenchEvaluator
+
+        evaluator = MMBenchEvaluator()
+        results = [
+            {"id": "q1", "prediction": "A", "ground_truth": "A"},
+            {"id": "q1", "prediction": "A", "ground_truth": "A"},
+            {"id": "q2", "prediction": "B", "ground_truth": "B"},
+            {"id": "q2", "prediction": "C", "ground_truth": "B"},
+        ]
+        metrics = evaluator.evaluate(results)
+        self.assertAlmostEqual(metrics["acc"], 0.75)
+        self.assertAlmostEqual(metrics["acc_plus"], 0.5)
+
+        # Test dataset interface compatibility
+        self.assertEqual(evaluator.score("A", "A"), {"accuracy": 1.0})
+        self.assertEqual(evaluator.score("B", "A"), {"accuracy": 0.0})
+
+    def test_mmmu_evaluator(self):
+        from utils.metrics import MMMUEvaluator
+
+        evaluator = MMMUEvaluator()
+        results = [
+            {"subject": "Math", "prediction": "A", "ground_truth": "A"},
+            {"subject": "Math", "prediction": "The answer is 10", "ground_truth": "10"},
+            {"subject": "Art", "prediction": "B", "ground_truth": "C"},
+        ]
+        metrics = evaluator.evaluate(results)
+        self.assertAlmostEqual(metrics["overall_micro"], 2 / 3)
+        self.assertAlmostEqual(metrics["by_domain"]["Math"], 1.0)
+        self.assertAlmostEqual(metrics["by_domain"]["Art"], 0.0)
+        self.assertAlmostEqual(metrics["overall_macro"], 0.5)
+
+    def test_mmmupro_evaluator(self):
+        from utils.metrics import MMMUProEvaluator
+
+        evaluator = MMMUProEvaluator()
+        results = [
+            {"prediction": "I", "ground_truth": "I"},
+            {"prediction": "J", "ground_truth": "A"},
+        ]
+        metrics = evaluator.evaluate(results)
+        self.assertAlmostEqual(metrics["accuracy"], 0.5)
+
+
 if __name__ == "__main__":
     unittest.main()
 
