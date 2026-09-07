@@ -10,44 +10,75 @@
 
 ---
 
-## ⚡ Quick Start
+## 🛠️ Environment Setup
+
+Choose **Option A (Conda)** or **Option B (Docker)** depending on your workflow.
+
+### Option A: Conda
 
 ```bash
 conda env create -f env.yaml
 conda activate vlm
 ```
 
+### Option B: Docker
+
+The environment is pinned for Linux x86_64. GPU evaluation requires an NVIDIA driver and NVIDIA Container Toolkit on the host.
+
+```bash
+# Build the Docker image
+docker build --platform linux/amd64 -t vlm-benchmark .
+
+# Verify installation
+docker run --rm vlm-benchmark --help
+```
+
+> **Note:** The Dockerfile uses Miniforge 26.5.3-0 and verifies the installer against its [release checksum](https://github.com/conda-forge/miniforge/releases/tag/26.5.3-0). Local datasets, checkpoints, and results are excluded by `.dockerignore`; mount them into the container when running.
+
 ---
 
 ## 📐 Run Evaluation
 
-```bash
-python eval.py --model qwen_vl --model_path Qwen/Qwen3-VL-2B-Instruct --benchmark MMMUPro --baseline fastv --batch_size 1
-```
-
-## Docker
-
-The environment is pinned for Linux x86_64. Build the image and check the CLI:
+### CLI Usage
 
 ```bash
-docker build --platform linux/amd64 -t vlm-benchmark .
-docker run --rm vlm-benchmark --help
+python eval.py \
+  --model <model_name> \
+  --model_path <hf_path_or_local_path> \
+  --benchmark <benchmark_name> \
+  --baseline <baseline_name> \
+  --batch_size <batch_size>
 ```
 
-GPU evaluation requires an NVIDIA driver and NVIDIA Container Toolkit on the host.
-Persist results and downloaded models/datasets using mounts:
+---
+
+### Option A: Running with Conda
+
+```bash
+python eval.py \
+  --model qwen_vl \
+  --model_path Qwen/Qwen3-VL-2B-Instruct \
+  --benchmark MMMUPro \
+  --baseline fastv \
+  --batch_size 1
+```
+
+---
+
+### Option B: Running with Docker
+
+Persist results and downloaded models/datasets using volume mounts:
 
 ```bash
 mkdir -p results
+
 docker run --rm --gpus all \
   -v "$PWD/results:/workspace/results" \
   -v vlm-hf-cache:/root/.cache/huggingface \
   vlm-benchmark \
-  --model qwen_vl --model_path Qwen/Qwen3-VL-2B-Instruct \
-  --benchmark MMMUPro --baseline fastv --batch_size 1
+  --model qwen_vl \
+  --model_path Qwen/Qwen3-VL-2B-Instruct \
+  --benchmark MMMUPro \
+  --baseline fastv \
+  --batch_size 1
 ```
-
-The Dockerfile uses Miniforge 26.5.3-0 and verifies the installer against its
-[release checksum](https://github.com/conda-forge/miniforge/releases/tag/26.5.3-0).
-Local datasets, checkpoints, and results are excluded by `.dockerignore`; mount
-them into the container when needed.
