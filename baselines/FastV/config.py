@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from typing import Literal
 
 @dataclass
 class FastVConfig:
-    
-    k: int = 2                      
-    r: float = 0.50                 
-    metric: Literal["attention", "random"] = "attention"
+
+    k: int
+    r: float
     image_token_index: int = 32000
 
     def __post_init__(self):

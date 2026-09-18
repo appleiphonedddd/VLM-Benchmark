@@ -1,13 +1,13 @@
-from typing import List, Optional, Union
+from typing import List, Union
 from PIL import Image
 from base.base_baseline import BaseBaseline
 from .config import FastVConfig
 from .patcher import FastVPatcher
 
 class FastVBaseline(BaseBaseline):
-    def __init__(self, model, config: Optional[FastVConfig] = None):
+    def __init__(self, model, k: int = 2, r: float = 0.50):
         super().__init__(model)
-        self.config = config or FastVConfig()
+        self.config = FastVConfig(k=k, r=r)
         self.patcher = FastVPatcher(self.config)
         self.patcher.patch_model(self.model.model)
 

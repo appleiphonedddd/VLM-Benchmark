@@ -11,7 +11,10 @@ def load_model(args):
     model = models.build_model(args.model, model_path=args.model_path, device=args.device)
 
     if args.baseline is not None:
-        model = baselines.build_baseline(args.baseline, model=model)
+        baseline_kwargs = {}
+        if args.baseline.lower() == "fastv":
+            baseline_kwargs = {"k": args.fastv_k, "r": args.fastv_r}
+        model = baselines.build_baseline(args.baseline, model=model, **baseline_kwargs)
 
     return model
 
@@ -67,6 +70,13 @@ def parse_args():
                         help="Max new tokens to generate per sample")
 
     parser.add_argument("--device", type=str, default="cuda")
+
+    # Fast V
+    parser.add_argument("--fastv_k", type=int, default=2,
+                        help="FastV: layer index after which image tokens are pruned")
+
+    parser.add_argument("--fastv_r", type=float, default=0.50,
+                        help="FastV: fraction of image tokens to prune (kept ratio = 1 - r)")
 
     return parser.parse_args()
 
